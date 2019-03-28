@@ -110,8 +110,8 @@ class TwoLayerNet(object):
     for row in softmax:
         row[y[i]] = row[y[i]] - 1
         i = i + 1
-    dout = softmax / 5
-    
+    dout = softmax / y.shape[0]
+
     #affine2
     dx = torch.mm(dout, torch.t(W2))
     grads['W2'] = torch.mm(torch.t(h1), dout)
@@ -166,7 +166,12 @@ class TwoLayerNet(object):
       #########################################################################
       # TODO: 'grads' dictionary에서 gradient를 불러와 SGD update 수행        #
       #########################################################################
-      pass
+      
+      self.params['W1'] -= learning_rate * grads['W1']
+      self.params['b1'] -= learning_rate * grads['b1']
+      self.params['W2'] -= learning_rate * grads['W2']
+      self.params['b2'] -= learning_rate * grads['b2']
+      
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
