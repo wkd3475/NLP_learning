@@ -88,11 +88,10 @@ class TwoLayerNet(object):
     #              'softmax' 변수에 저장된 softmax값을 이용해서 계산              #
     #         'y'는 정답 index를 가리키며 정답 확률에 -log 적용하여 평균           #
     #############################################################################
-    data = 0
-    for i in range(0, y.nelement()):
-        l = math.log(softmax[i, y[i]].item())
-        data = data + l
-    loss = torch.tensor(-0.2 * data)
+    
+    data = softmax[range(y.nelement()), y]
+    loss = -torch.sum(torch.log(data)) / y.nelement()
+        
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -105,12 +104,36 @@ class TwoLayerNet(object):
     #          grads['W1']는 self.params['W1']과 같은 shape를 가져야 함.        #
     #              softmax의 gradient부터 차근차근 구해나가도록 함.              #
     #############################################################################
-    pass
+    
+    #softmax-with-loss
+    i = 0
+    for row in softmax:
+        row[y[i]] = row[y[i]] - 1
+        i = i + 1
+    dout = softmax / 5
+    
+    #affine2
+    dx = torch.mm(dout, torch.t(W2))
+    grads['W2'] = torch.mm(torch.t(h1), dout)
+    grads['b2'] = torch.sum(dout, dim=0)
+    dout = dx
+    
+    #ReLU
+    mask = (h1 <= 0)
+    dout[mask] = 0
+    
+    #affine1
+    dx = torch.mm(dout, torch.t(W1))
+    grads['W1'] = torch.mm(torch.t(X), dout)
+    grads['b1'] = torch.sum(dout, dim=0)
+    dout = dx
+    
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
 
     return loss, grads
+
 
   def train(self, X, y,
             learning_rate=1e-3, learning_rate_decay=0.95,
