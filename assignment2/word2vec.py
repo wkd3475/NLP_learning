@@ -11,16 +11,33 @@ def skipgram(centerWord, contextWord, inputMatrix, outputMatrix):
 # inputMatrix : Weight matrix of input (type:torch.tesnor(V,D))         #
 # outputMatrix : Weight matrix of output (type:torch.tesnor(V,D))       #
 #########################################################################
+    V = inputMatrix.shape[0]
+    D = inputMatrix.shape[1]
 
+    h = inputMatrix[centerWord].reshape(D, 1)
+    #h.shape = (D,1)
+
+    o = torch.mm(outputMatrix, h)
+    e = torch.exp(o)
+    softmax = e / torch.sum(e, dim=1, keepdim=True)
+    #softmax.shape = (V, 1)
+    
+    loss = 0
+    for i in range(V):
+        if i == centerWord:
+            loss -= torch.log(softmax[i])
+        else:
+            loss -= torch.log(1 - softmax[i])
+
+    grad_in = torch.mm(e.reshape(1, V), outputMatrix)
+    #grad_in.shape = (1, D)
+    grad_out = torch.mm(e, h.reshape(1, D))
+    #grad_out.shape = (V, D)
 ###############################  Output  ################################
 # loss : Loss value (type:torch.tensor(1))                              #
 # grad_in : Gradient of inputMatrix (type:torch.tensor(1,D))            #
 # grad_out : Gradient of outputMatrix (type:torch.tesnor(V,D))          #
 #########################################################################
-
-    loss = None
-    grad_in = None
-    grad_out = None
 
     return loss, grad_in, grad_out
 
@@ -31,16 +48,36 @@ def CBOW(centerWord, contextWords, inputMatrix, outputMatrix):
 # inputMatrix : Weight matrix of input (type:torch.tesnor(V,D))         #
 # outputMatrix : Weight matrix of output (type:torch.tesnor(V,D))       #
 #########################################################################
+    V = inputMatrix.shape[0]
+    D = inputMatrix.shape[1]
 
+    h = torch.zeros(D, 1)
+    for word in contextWords:
+        h = h + inputMatrix[word].reshape(D, 1)
+    #h.shape = (D,1)
+    
+    o = torch.mm(outputMatrix, h)
+    e = torch.exp(o)
+    softmax = e / torch.sum(e, dim=1, keepdim=True)
+    #softmax.shape = (V, 1)
+    
+    loss = 0
+    print(centerWord)
+    for i in range(V):
+        if i == centerWord:
+            loss -= torch.log(softmax[i])
+        else:
+            loss -= torch.log(1 - softmax[i])
+
+    grad_in = torch.mm(e.reshape(1, V), outputMatrix)
+    #grad_in.shape = (1, D)
+    grad_out = torch.mm(e, h.reshape(1, D))
+    #grad_out.shape = (V, D)
 ###############################  Output  ################################
 # loss : Loss value (type:torch.tensor(1))                              #
 # grad_in : Gradient of inputMatrix (type:torch.tensor(1,D))            #
 # grad_out : Gradient of outputMatrix (type:torch.tesnor(V,D))          #
 #########################################################################
-
-    loss = None
-    grad_in = None
-    grad_out = None
 
     return loss, grad_in, grad_out
 
@@ -72,6 +109,7 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
             if mode=="CBOW":
                 L, G_in, G_out = CBOW(centerInd, contextInds, W_in, W_out)
                 
+                print(L)
                 W_in[contextInds] -= learning_rate*G_in
                 W_out -= learning_rate*G_out
 
@@ -79,7 +117,6 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
             elif mode=="SG":
             	for contextInd in contextInds:
 	                L, G_in, G_out = skipgram(centerInd, contextInd, W_in, W_out)
-	                
 	                W_in[centerInd] -= learning_rate*G_in.squeeze()
 	                W_out -= learning_rate*G_out
 
@@ -88,7 +125,7 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
                 print("Unkwnown mode : "+mode)
                 exit()
 
-            if i%10000==0:
+            if i%1000==0:
             	avg_loss=sum(losses)/len(losses)
             	print("Loss : %f" %(avg_loss,))
             	losses=[]
