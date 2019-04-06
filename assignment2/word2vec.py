@@ -3,6 +3,8 @@ from random import shuffle
 from collections import Counter
 import argparse
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+print(device)
 
 def skipgram(centerWord, contextWord, inputMatrix, outputMatrix):
 ################################  Input  ################################
@@ -18,17 +20,19 @@ def skipgram(centerWord, contextWord, inputMatrix, outputMatrix):
     #h.shape = (D,1)
 
     o = torch.mm(outputMatrix, h)
-    e = torch.exp(o)
-    softmax = e / torch.sum(e, dim=1, keepdim=True)
+    e = torch.exp(o - torch.max(o))
+    softmax = e / torch.sum(e)
     #softmax.shape = (V, 1)
     
     loss = 0
     for i in range(V):
-        if i == centerWord:
-            loss -= torch.log(softmax[i])
+        if i == contextWord:
+            loss -= torch.log(softmax[i] + 0.001)
+            e[i] = e[i] - 1
         else:
-            loss -= torch.log(1 - softmax[i])
-
+            temp = 1 - softmax[i]
+            loss -= torch.log(temp + 0.001)
+    
     grad_in = torch.mm(e.reshape(1, V), outputMatrix)
     #grad_in.shape = (1, D)
     grad_out = torch.mm(e, h.reshape(1, D))
@@ -51,24 +55,27 @@ def CBOW(centerWord, contextWords, inputMatrix, outputMatrix):
     V = inputMatrix.shape[0]
     D = inputMatrix.shape[1]
 
-    h = torch.zeros(D, 1)
+    h = torch.zeros(1, D)
     for word in contextWords:
-        h = h + inputMatrix[word].reshape(D, 1)
+        h = h + inputMatrix[word]
+    h = h.reshape(D, 1)
     #h.shape = (D,1)
     
     o = torch.mm(outputMatrix, h)
-    e = torch.exp(o)
-    softmax = e / torch.sum(e, dim=1, keepdim=True)
+    e = torch.exp(o - torch.max(o))
+    softmax = e / torch.sum(e)
     #softmax.shape = (V, 1)
     
     loss = 0
-    print(centerWord)
+    
     for i in range(V):
         if i == centerWord:
-            loss -= torch.log(softmax[i])
+            loss -= torch.log(softmax[i] + 0.001)
+            e[i] = e[i] - 1
         else:
-            loss -= torch.log(1 - softmax[i])
-
+            temp = 1 - softmax[i]
+            loss -= torch.log(temp + 0.001)
+            
     grad_in = torch.mm(e.reshape(1, V), outputMatrix)
     #grad_in.shape = (1, D)
     grad_out = torch.mm(e, h.reshape(1, D))
@@ -82,7 +89,7 @@ def CBOW(centerWord, contextWords, inputMatrix, outputMatrix):
     return loss, grad_in, grad_out
 
 
-def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, learning_rate=0.025, epoch=3):
+def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, learning_rate=0.0025, epoch=3):
 # train_seq : list(tuple(int, list(int))
 
 # Xavier initialization of weight matrices
@@ -109,7 +116,6 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
             if mode=="CBOW":
                 L, G_in, G_out = CBOW(centerInd, contextInds, W_in, W_out)
                 
-                print(L)
                 W_in[contextInds] -= learning_rate*G_in
                 W_out -= learning_rate*G_out
 
@@ -125,9 +131,9 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
                 print("Unkwnown mode : "+mode)
                 exit()
 
-            if i%1000==0:
+            if i%100==0:
             	avg_loss=sum(losses)/len(losses)
-            	print("Loss : %f" %(avg_loss,))
+            	print("%f : %d / %d Loss : %f" %(i/len(train_seq), i, len(train_seq), avg_loss,))
             	losses=[]
 
     return W_in, W_out
