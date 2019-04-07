@@ -23,19 +23,13 @@ def skipgram(centerWord, contextWord, inputMatrix, outputMatrix):
     e = torch.exp(o - torch.max(o))
     softmax = e / torch.sum(e)
     #softmax.shape = (V, 1)
+
+    loss = -torch.log(softmax[contextWord]+0.00001)
+    softmax[contextWord] = softmax[contextWord] - 1
     
-    loss = 0
-    for i in range(V):
-        if i == contextWord:
-            loss -= torch.log(softmax[i] + 0.001)
-            e[i] = e[i] - 1
-        else:
-            temp = 1 - softmax[i]
-            loss -= torch.log(temp + 0.001)
-    
-    grad_in = torch.mm(e.reshape(1, V), outputMatrix)
+    grad_in = torch.mm(softmax.reshape(1, V), outputMatrix)
     #grad_in.shape = (1, D)
-    grad_out = torch.mm(e, h.reshape(1, D))
+    grad_out = torch.mm(softmax, h.reshape(1, D))
     #grad_out.shape = (V, D)
 ###############################  Output  ################################
 # loss : Loss value (type:torch.tensor(1))                              #
@@ -66,19 +60,12 @@ def CBOW(centerWord, contextWords, inputMatrix, outputMatrix):
     softmax = e / torch.sum(e)
     #softmax.shape = (V, 1)
     
-    loss = 0
+    loss = -torch.log(softmax[centerWord]+0.00001)
+    softmax[centerWord] = softmax[centerWord] - 1
     
-    for i in range(V):
-        if i == centerWord:
-            loss -= torch.log(softmax[i] + 0.001)
-            e[i] = e[i] - 1
-        else:
-            temp = 1 - softmax[i]
-            loss -= torch.log(temp + 0.001)
-            
-    grad_in = torch.mm(e.reshape(1, V), outputMatrix)
+    grad_in = torch.mm(softmax.reshape(1, V), outputMatrix)
     #grad_in.shape = (1, D)
-    grad_out = torch.mm(e, h.reshape(1, D))
+    grad_out = torch.mm(softmax, h.reshape(1, D))
     #grad_out.shape = (V, D)
 ###############################  Output  ################################
 # loss : Loss value (type:torch.tensor(1))                              #
@@ -95,6 +82,8 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
 # Xavier initialization of weight matrices
     W_in = torch.randn(numwords, dimension) / (dimension**0.5)
     W_out = torch.randn(numwords, dimension) / (dimension**0.5)
+    #W_in.cuda()
+    #W_out.cuda()
     i=0
     losses=[]
 
@@ -131,9 +120,9 @@ def word2vec_trainer(train_seq, numwords, stats, mode="CBOW", dimension=100, lea
                 print("Unkwnown mode : "+mode)
                 exit()
 
-            if i%100==0:
+            if i%1000==0:
             	avg_loss=sum(losses)/len(losses)
-            	print("%f : %d / %d Loss : %f" %(i/len(train_seq), i, len(train_seq), avg_loss,))
+            	print("%d  Loss : %f" %(i, avg_loss,))
             	losses=[]
 
     return W_in, W_out
@@ -167,7 +156,7 @@ def main():
 	#Load and preprocess corpus
     print("loading...")
     if part=="part":
-        text = open('text8',mode='r').readlines()[0][:1000000] #Load a part of corpus for debugging
+        text = open('text8',mode='r').readlines()[0][:10000000] #Load a part of corpus for debugging
     elif part=="full":
         text = open('text8',mode='r').readlines()[0] #Load full corpus for submission
     else:
