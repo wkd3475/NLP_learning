@@ -29,7 +29,7 @@ def Analogical_Reasoning_Task(embedding, w2i, i2w, ngram2i, i2ngram, vocab, word
         print("=========================")
         print("x : %s" %(word))
         Cosine_Similarity_test(vec, word_vector_dic, w2i, vocab)
-    
+
 
 def Cosine_Similarity_test(x, word_vector_dic, w2i, vocab):
     sim_word = {}
@@ -94,6 +94,25 @@ def skipgram_NS(centerWord, inputMatrix, outputMatrix):
 
     return loss, grad_in, grad_out
 
+def subsampling(word_seq):
+    ###############################  Output  #########################################
+# subsampled : Subsampled sequence                                               #
+##################################################################################
+    stats = Counter(word_seq)
+    N = len(word_seq)
+
+    f = stats
+    for word in stats:
+        f[word] = f[word] / N
+    
+    subsampled = []
+    for word in word_seq:
+        Pd = 1 - (0.00001 / f[word])**0.5
+        if random.uniform(0, 1) > Pd:
+            subsampled.append(word)
+
+    return subsampled
+
 def word2vec_trainer(input_seq, target_seq, numwords, stats, ngram2i, i2ngram, w_ngram_dic, NS=20, dimension=100, learning_rate=0.025, epoch=3):
 # train_seq : list(tuple(int, list(int))
 
@@ -151,6 +170,11 @@ def fnv32a( str ):
         hval = (hval * fnv_32_prime) % uint32_max
     return hval
 
+##################################################################
+# n_gram_dic :                                                   #
+# ex) "hello" => {"hello" : ["<he", "hel", ... , "<hello>"]}     #                            
+# n_gram_vocab : ngrams                                          #
+##################################################################
 def n_gram_tokenize(vocabs):
     n_gram_vocab = []
     n_gram_dic = {}
@@ -176,6 +200,8 @@ def n_gram_tokenize(vocabs):
             n_gram_dic[word_].append(word)
             #n_gram_dic[word_].append(fnv32a(word))
     return n_gram_vocab, n_gram_dic
+##################################################################
+##################################################################
 
 def sim(testword, word2ind, ind2word, matrix):
     length = (matrix*matrix).sum(1)**0.5
@@ -215,6 +241,8 @@ def main():
     print("preprocessing...")
     corpus = text.split()
 
+    corpus = subsampling(corpus)
+
     stats = Counter(corpus)
     words = []
 
@@ -248,7 +276,6 @@ def main():
     vocab_tokenized, vocab_tokenized_dic = n_gram_tokenize(list(vocab))
     #print(vocab_tokenized_dic)
 
-    #subemb,_ = word2vec_trainer(input_set, target_set, len(w2i), freqtable, NS=ns, dimension=64, epoch=1, learning_rate=0.01)
     ngram2i = {}
     ngram2i[" "] = 0
     i = 1
@@ -258,17 +285,14 @@ def main():
     i2ngram = {}
     for k,v in ngram2i.items():
         i2ngram[v] = k
+
     #print(vocab_tokenized_dic)
     w_ngram_dic = {}
     for k, v in vocab_tokenized_dic.items():
-        print(k)
-        print(v)
         w_ngram_dic[w2i[k]] = []
         for n in v:
             w_ngram_dic[w2i[k]].append(ngram2i[n])
-
-    #print(w_ngram_dic)
-
+    
     #Make training set
     print("build training set...")
     target_set = []
