@@ -318,6 +318,7 @@ def main():
     #Training section
     emb,emb2 = word2vec_trainer(input_set, target_set, len(w2i), freqtable, ngram2i, i2ngram, w_ngram_dic, NS=ns, dimension=64, epoch=1, learning_rate=0.01)
     #emb : (N, D)
+    
     torch.save(emb, 'W_in.pth')
     torch.save(emb2, 'W_out.pth')
     word_vector_dic = {}
